@@ -2,7 +2,7 @@ import type { Server } from 'node:http';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { afterEach, describe, expect, it } from 'vitest';
-import { createHttpApp, listen } from '../src';
+import { createHttpApp, listen, tools as allTools } from '../src';
 import { config, fakeClient, text } from './helpers';
 
 let app: Server | undefined;
@@ -32,7 +32,7 @@ describe('Streamable HTTP transport', () => {
     const client = new Client({ name: 'test', version: '0' });
     await client.connect(new StreamableHTTPClientTransport(new URL(`${base}/mcp`)));
     const { tools } = await client.listTools();
-    expect(tools).toHaveLength(23);
+    expect(tools).toHaveLength(allTools.length);
     const r = await client.callTool({ name: 'list_domains', arguments: {} });
     expect(JSON.parse(text(r))).toEqual({ ok: true, method: 'domains.list' });
     expect(fake.client.domains.list).toHaveBeenCalledOnce();
@@ -54,7 +54,7 @@ describe('Streamable HTTP transport', () => {
     expect((await fetch(`${base}/mcp`, { method: 'POST', body, headers: { ...headers, Authorization: 'Bearer wrong!' } })).status).toBe(401);
     const client = new Client({ name: 'test', version: '0' });
     await client.connect(new StreamableHTTPClientTransport(new URL(`${base}/mcp`), { requestInit: { headers: { Authorization: 'Bearer s3cret' } } }));
-    expect((await client.listTools()).tools.length).toBe(23);
+    expect((await client.listTools()).tools.length).toBe(allTools.length);
     await client.close();
   });
 

@@ -3,17 +3,30 @@ import { tools } from '../src';
 import { API_KEY, config, connect, fakeClient, text } from './helpers';
 
 const READ = [
-  'get_email', 'list_emails', 'list_domains', 'get_domain', 'list_contacts', 'list_segments', 'list_templates', 'preview_template', 'list_suppressions',
-  'list_webhooks',
+  'get_email', 'list_emails', 'list_email_attachments', 'get_email_attachment', 'list_domains', 'get_domain', 'detect_dns_provider',
+  'list_templates', 'get_template', 'preview_template', 'render_template_html', 'convert_html_to_builder', 'get_template_builder_capabilities',
+  'get_theme', 'list_contacts', 'get_contact', 'list_contact_segments', 'list_segments', 'get_segment', 'list_segment_contacts',
+  'list_broadcasts', 'get_broadcast', 'list_suppressions', 'get_suppression', 'list_webhooks', 'get_webhook', 'list_api_keys', 'get_usage',
 ];
 const ALL = [
-  'send_email', 'send_batch', 'get_email', 'list_emails', 'cancel_email', 'list_domains', 'get_domain', 'create_domain', 'verify_domain',
-  'list_contacts', 'create_contact', 'batch_create_contacts', 'update_contact', 'list_segments', 'create_broadcast', 'send_broadcast',
-  'list_templates', 'preview_template', 'create_template', 'list_suppressions', 'add_suppression', 'list_webhooks', 'create_webhook',
+  'send_email', 'send_batch', 'get_email', 'list_emails', 'list_email_attachments', 'get_email_attachment', 'reschedule_email', 'cancel_email',
+  'list_domains', 'get_domain', 'create_domain', 'update_domain', 'verify_domain', 'detect_dns_provider', 'setup_dns_cloudflare', 'delete_domain',
+  'list_templates', 'get_template', 'preview_template', 'render_template_html', 'convert_html_to_builder', 'create_template', 'update_template',
+  'publish_template', 'duplicate_template', 'delete_template',
+  'get_template_builder_capabilities', 'generate_template_with_ai', 'rewrite_block', 'translate_template', 'suggest_subjects',
+  'import_brand_from_website', 'get_theme', 'update_theme',
+  'list_contacts', 'get_contact', 'create_contact', 'batch_create_contacts', 'update_contact', 'delete_contact', 'list_contact_segments',
+  'add_contact_to_segment', 'remove_contact_from_segment',
+  'list_segments', 'get_segment', 'list_segment_contacts', 'create_segment', 'update_segment', 'delete_segment',
+  'list_broadcasts', 'get_broadcast', 'create_broadcast', 'update_broadcast', 'send_broadcast', 'cancel_broadcast', 'duplicate_broadcast', 'delete_broadcast',
+  'list_suppressions', 'get_suppression', 'add_suppression', 'batch_add_suppressions', 'remove_suppression', 'batch_remove_suppressions',
+  'list_webhooks', 'get_webhook', 'create_webhook', 'update_webhook', 'rotate_webhook_secret', 'delete_webhook',
+  'list_api_keys', 'create_api_key', 'rename_api_key', 'revoke_api_key',
+  'get_usage',
 ];
 
 describe('tool registration', () => {
-  it('registers all 23 tools with descriptions, JSON schemas and annotations', async () => {
+  it(`registers all ${ALL.length} tools with descriptions, JSON schemas and annotations`, async () => {
     const { mcp } = await connect();
     const { tools: listed } = await mcp.listTools();
     expect(listed.map((t) => t.name).sort()).toEqual([...ALL].sort());
@@ -41,17 +54,18 @@ describe('tool registration', () => {
   });
 
   it('every tool has a kind and endpoint', () => {
-    expect(tools).toHaveLength(23);
+    expect(tools).toHaveLength(ALL.length);
+    expect(new Set(ALL).size).toBe(ALL.length);
     for (const t of tools) {
       expect(['read', 'write', 'send']).toContain(t.kind);
-      expect(t.endpoint({} as never)).toMatch(/^(GET|POST|PATCH) \//);
+      expect(t.endpoint({} as never)).toMatch(/^(GET|POST|PATCH|DELETE) \//);
     }
   });
 
   it('exposes the draft_welcome_email prompt', async () => {
     const { mcp } = await connect();
     const { prompts } = await mcp.listPrompts();
-    expect(prompts.map((p) => p.name)).toEqual(['draft_welcome_email']);
+    expect(prompts.map((p) => p.name)).toEqual(['draft_welcome_email', 'branded_template_from_website']);
     const p = await mcp.getPrompt({ name: 'draft_welcome_email', arguments: { product: 'Acme', test_recipient: 'me@acme.com' } });
     expect(JSON.stringify(p.messages)).toMatch(/send_email tool to me@acme.com only/);
     const p2 = await mcp.getPrompt({ name: 'draft_welcome_email', arguments: { product: 'Acme', tone: 'formal' } });
@@ -59,6 +73,15 @@ describe('tool registration', () => {
     const { mcp: ro } = await connect(config({ readOnly: true }));
     const p3 = await ro.getPrompt({ name: 'draft_welcome_email', arguments: { product: 'Acme', test_recipient: 'x@y.com' } });
     expect(JSON.stringify(p3.messages)).toMatch(/read-only/);
+    const b = await mcp.getPrompt({ name: 'branded_template_from_website', arguments: { website: 'acme.com', purpose: 'welcome', test_recipient: 'me@acme.com', language: 'pt-br' } });
+    const bt = JSON.stringify(b.messages);
+    for (const step of ['get_template_builder_capabilities', 'import_brand_from_website', 'generate_template_with_ai', 'render_template_html', 'create_template', 'send_email tool to me@acme.com only', 'pt-br']) {
+      expect(bt).toContain(step);
+    }
+    const b2 = await mcp.getPrompt({ name: 'branded_template_from_website', arguments: { website: 'acme.com', purpose: 'welcome' } });
+    expect(JSON.stringify(b2.messages)).toMatch(/Do not send anything/);
+    const b3 = await ro.getPrompt({ name: 'branded_template_from_website', arguments: { website: 'acme.com', purpose: 'welcome' } });
+    expect(JSON.stringify(b3.messages)).toMatch(/read-only/);
   });
 });
 
