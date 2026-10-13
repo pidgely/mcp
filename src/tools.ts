@@ -333,6 +333,47 @@ export const tools: ToolDefinition[] = [
       }),
   }),
   tool({
+    name: 'batch_create_contacts',
+    title: 'Create contacts in bulk',
+    description:
+      'Create or update up to 1,000 contacts in one request (matched by email), optionally adding all of them to a segment. ' +
+      'Each row is saved independently: invalid rows are reported in "errors" with their index, the others are saved. Returns the ids by index.',
+    kind: 'write',
+    input: {
+      contacts: z
+        .array(
+          z.object({
+            email: z.email().describe('Contact email address.'),
+            first_name: z.string().optional(),
+            last_name: z.string().optional(),
+            unsubscribed: z.boolean().optional().describe('true to opt the contact out of broadcasts.'),
+            properties: z
+              .record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()]))
+              .optional()
+              .describe('Custom properties, usable in broadcasts as {{{contact.<name>}}}.'),
+            segment_ids: z.array(z.string()).optional().describe('Segments to add this contact to.'),
+          }),
+        )
+        .min(1)
+        .max(1000)
+        .describe('The contacts to save (1-1000).'),
+      segment_id: z.string().optional().describe('Segment every contact is added to.'),
+    },
+    endpoint: () => 'POST /contacts/batch',
+    run: (c, a) =>
+      c.contacts.batch({
+        contacts: a.contacts.map((ct) => ({
+          email: ct.email,
+          firstName: ct.first_name,
+          lastName: ct.last_name,
+          unsubscribed: ct.unsubscribed,
+          properties: ct.properties,
+          segments: ct.segment_ids?.map((s) => ({ id: s })),
+        })),
+        segmentId: a.segment_id,
+      }),
+  }),
+  tool({
     name: 'update_contact',
     title: 'Update contact',
     description:
@@ -429,6 +470,23 @@ export const tools: ToolDefinition[] = [
     input: pagination,
     endpoint: () => 'GET /templates',
     run: (c, a) => c.templates.list(page(a)),
+  }),
+  tool({
+    name: 'preview_template',
+    title: 'Preview template',
+    description:
+      'Render a template draft (by id or alias) with variables, without sending anything. Returns the rendered from, subject, html and text, ' +
+      'plus missing_variables: variables with neither a value nor a fallback, which would make a send fail.',
+    kind: 'read',
+    input: {
+      id: z.string().min(1).describe('Template id or alias.'),
+      variables: z
+        .record(z.string(), z.union([z.string(), z.number()]))
+        .optional()
+        .describe('Values for the template variables, e.g. {"NAME": "Ana"}. Variables not given use their fallback value.'),
+    },
+    endpoint: (a) => `POST /templates/${a.id}/preview`,
+    run: (c, a) => c.templates.preview(a.id, { variables: a.variables }),
   }),
   tool({
     name: 'create_template',

@@ -2,15 +2,18 @@ import { describe, expect, it } from 'vitest';
 import { tools } from '../src';
 import { API_KEY, config, connect, fakeClient, text } from './helpers';
 
-const READ = ['get_email', 'list_emails', 'list_domains', 'get_domain', 'list_contacts', 'list_segments', 'list_templates', 'list_suppressions', 'list_webhooks'];
+const READ = [
+  'get_email', 'list_emails', 'list_domains', 'get_domain', 'list_contacts', 'list_segments', 'list_templates', 'preview_template', 'list_suppressions',
+  'list_webhooks',
+];
 const ALL = [
   'send_email', 'send_batch', 'get_email', 'list_emails', 'cancel_email', 'list_domains', 'get_domain', 'create_domain', 'verify_domain',
-  'list_contacts', 'create_contact', 'update_contact', 'list_segments', 'create_broadcast', 'send_broadcast', 'list_templates',
-  'create_template', 'list_suppressions', 'add_suppression', 'list_webhooks', 'create_webhook',
+  'list_contacts', 'create_contact', 'batch_create_contacts', 'update_contact', 'list_segments', 'create_broadcast', 'send_broadcast',
+  'list_templates', 'preview_template', 'create_template', 'list_suppressions', 'add_suppression', 'list_webhooks', 'create_webhook',
 ];
 
 describe('tool registration', () => {
-  it('registers all 21 tools with descriptions, JSON schemas and annotations', async () => {
+  it('registers all 23 tools with descriptions, JSON schemas and annotations', async () => {
     const { mcp } = await connect();
     const { tools: listed } = await mcp.listTools();
     expect(listed.map((t) => t.name).sort()).toEqual([...ALL].sort());
@@ -38,7 +41,7 @@ describe('tool registration', () => {
   });
 
   it('every tool has a kind and endpoint', () => {
-    expect(tools).toHaveLength(21);
+    expect(tools).toHaveLength(23);
     for (const t of tools) {
       expect(['read', 'write', 'send']).toContain(t.kind);
       expect(t.endpoint({} as never)).toMatch(/^(GET|POST|PATCH) \//);
@@ -108,6 +111,20 @@ const cases: Case[] = [
     expected: [{ email: 'ana@x.com', firstName: 'Ana', lastName: undefined, unsubscribed: undefined, properties: { plan: 'pro' }, segments: [{ id: 'seg_1' }] }],
   },
   {
+    tool: 'batch_create_contacts',
+    args: { contacts: [{ email: 'ana@x.com', first_name: 'Ana', properties: { plan: 'pro' }, segment_ids: ['seg_2'] }, { email: 'bo@x.com' }], segment_id: 'seg_1' },
+    method: 'contacts.batch',
+    expected: [
+      {
+        contacts: [
+          { email: 'ana@x.com', firstName: 'Ana', lastName: undefined, unsubscribed: undefined, properties: { plan: 'pro' }, segments: [{ id: 'seg_2' }] },
+          { email: 'bo@x.com', firstName: undefined, lastName: undefined, unsubscribed: undefined, properties: undefined, segments: undefined },
+        ],
+        segmentId: 'seg_1',
+      },
+    ],
+  },
+  {
     tool: 'update_contact',
     args: { email: 'ana@x.com', unsubscribed: true, first_name: null },
     method: 'contacts.update',
@@ -129,6 +146,8 @@ const cases: Case[] = [
   { tool: 'send_broadcast', args: { id: 'bc_1', confirm: true }, method: 'broadcasts.send', expected: ['bc_1', undefined] },
   { tool: 'send_broadcast', args: { id: 'bc_1', confirm: true, scheduled_at: 'tomorrow' }, method: 'broadcasts.send', expected: ['bc_1', { scheduledAt: 'tomorrow' }] },
   { tool: 'list_templates', args: {}, method: 'templates.list', expected: [{ limit: 20, after: undefined }] },
+  { tool: 'preview_template', args: { id: 'welcome', variables: { NAME: 'Ana', DAYS: 14 } }, method: 'templates.preview', expected: ['welcome', { variables: { NAME: 'Ana', DAYS: 14 } }] },
+  { tool: 'preview_template', args: { id: 'tpl_1' }, method: 'templates.preview', expected: ['tpl_1', { variables: undefined }] },
   { tool: 'list_suppressions', args: { origin: 'bounce' }, method: 'suppressions.list', expected: [{ limit: 20, after: undefined, origin: 'bounce' }] },
   { tool: 'add_suppression', args: { email: 'x@y.com' }, method: 'suppressions.add', expected: [{ email: 'x@y.com' }] },
   { tool: 'list_webhooks', args: {}, method: 'webhooks.list', expected: [{ limit: 20, after: undefined }] },
@@ -215,6 +234,10 @@ describe('argument validation', () => {
     ['list_emails', { limit: 500 }, /limit/],
     ['create_domain', { name: 'not a domain' }, /domain name/],
     ['create_contact', { email: 'nope' }, /email/],
+    ['batch_create_contacts', { contacts: [] }, /contacts/],
+    ['batch_create_contacts', { contacts: [{ email: 'nope' }] }, /email/],
+    ['preview_template', {}, /id/],
+    ['preview_template', { id: 'welcome', variables: { NAME: true } }, /variables/],
     ['update_contact', { unsubscribed: true }, /"id" or "email"/],
     ['create_broadcast', { segment_id: 's', subject: 's', html: 'h' }, /"from" is required/],
     ['create_broadcast', { segment_id: 's', from: 'a@acme.com', subject: 's' }, /Provide html or text/],
@@ -258,6 +281,9 @@ describe('dry run', () => {
     expect(batch.payload).toEqual([{ from: 'Acme <hi@acme.com>', to: 'a@x.com', subject: 's', text: 't' }]);
     const tpl = JSON.parse(text(await mcp.callTool({ name: 'create_template', arguments: { name: 'x', publish: true } })));
     expect(tpl.request).toMatch(/publish/);
+    const many = JSON.parse(text(await mcp.callTool({ name: 'batch_create_contacts', arguments: { contacts: [{ email: 'a@x.com' }], segment_id: 'seg_1' } })));
+    expect(many).toMatchObject({ dry_run: true, request: 'POST /contacts/batch', payload: { contacts: [{ email: 'a@x.com' }], segment_id: 'seg_1' } });
+    expect(fake.client.contacts.batch).not.toHaveBeenCalled();
     expect(fake.client.emails.send).not.toHaveBeenCalled();
     expect(fake.client.domains.verify).not.toHaveBeenCalled();
     expect(fake.client.batch.send).not.toHaveBeenCalled();
@@ -268,6 +294,8 @@ describe('dry run', () => {
     expect((await mcp.callTool({ name: 'send_email', arguments: { to: 'a@x.com', subject: 's', text: 't' } })).isError).toBe(true);
     await mcp.callTool({ name: 'list_emails', arguments: {} });
     expect(fake.client.emails.list).toHaveBeenCalledOnce();
+    await mcp.callTool({ name: 'preview_template', arguments: { id: 'welcome' } });
+    expect(fake.client.templates.preview).toHaveBeenCalledOnce();
   });
 });
 

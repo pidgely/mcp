@@ -14,7 +14,7 @@
 
 A [Model Context Protocol](https://modelcontextprotocol.io) server for [Pidgely](https://pidgely.com), the Resend-compatible email API. It lets Claude, Cursor, VS Code and other MCP clients send email, set up sending domains, and manage contacts, broadcasts, templates, suppressions and webhooks.
 
-- **21 tools** with precise JSON schemas, built on the official [`pidgely`](https://github.com/pidgely/pidgely-node) SDK and the official MCP TypeScript SDK.
+- **23 tools** with precise JSON schemas, built on the official [`pidgely`](https://github.com/pidgely/pidgely-node) SDK and the official MCP TypeScript SDK.
 - **Safe by default.** Sending tools require an explicit `to`, and broadcasts need `confirm: true`. A **dry-run** mode and a **read-only** mode are available. The API key is never echoed back to the model.
 - **Runs locally over stdio** (`npx`), or as a **Streamable HTTP** server.
 
@@ -122,11 +122,13 @@ CLI flags override the environment: `--http`, `--port <n>`, `--host <addr>`, `--
 | `verify_domain` | write | Re-check DNS now. |
 | `list_contacts` | read | Contacts, optionally by segment. |
 | `create_contact` | write | Create or update a contact with properties and segments. |
+| `batch_create_contacts` | write | Create or update up to 1,000 contacts in one call, optionally into a segment. Invalid rows are reported by index. |
 | `update_contact` | write | Update by id or email. `unsubscribed` syncs the suppression list. |
 | `list_segments` | read | Contact segments. |
 | `create_broadcast` | write | Create a broadcast **draft** for a segment. |
 | `send_broadcast` | send | Send or schedule a draft. Requires `confirm: true`. |
 | `list_templates` | read | Templates and their status. |
+| `preview_template` | read | Render a template draft with variables (nothing is sent) and list `missing_variables`. |
 | `create_template` | write | Create a template with typed variables, optionally publishing it. |
 | `list_suppressions` | read | Suppressed addresses by origin. |
 | `add_suppression` | write | Never email an address again. |

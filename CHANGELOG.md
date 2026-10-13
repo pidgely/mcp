@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `preview_template` (read): renders a template draft with variables without sending anything and reports `missing_variables`.
+- `batch_create_contacts` (write): creates or updates up to 1,000 contacts in one call, optionally adding them to a segment; invalid rows are reported with their index.
+
+### Changed
+
+- The bundled `pidgely` SDK is pinned to a commit that includes `templates.preview` and `contacts.batch`.
+
 ## [0.1.0] - 2026-10-12
 
 ### Added

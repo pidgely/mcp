@@ -36,10 +36,10 @@ export function fakeClient() {
         }),
       ),
     },
-    contacts: { list: m('contacts.list'), create: m('contacts.create'), update: m('contacts.update') },
+    contacts: { list: m('contacts.list'), create: m('contacts.create'), batch: m('contacts.batch'), update: m('contacts.update') },
     segments: { list: m('segments.list') },
     broadcasts: { create: m('broadcasts.create'), send: m('broadcasts.send') },
-    templates: { list: m('templates.list'), create: vi.fn(() => created) },
+    templates: { list: m('templates.list'), preview: m('templates.preview'), create: vi.fn(() => created) },
     suppressions: { list: m('suppressions.list'), add: m('suppressions.add') },
     webhooks: { list: m('webhooks.list'), create: m('webhooks.create') },
   };

@@ -19,7 +19,7 @@ const transport = new StdioClientTransport({
 const client = new Client({ name: 'smoke', version: '0' });
 await client.connect(transport);
 const { tools } = await client.listTools();
-if (tools.length !== 21) throw new Error(`expected 21 tools, got ${tools.length}`);
+if (tools.length !== 23) throw new Error(`expected 23 tools, got ${tools.length}`);
 const result = await client.callTool({ name: 'send_email', arguments: { to: 'a@example.com', subject: 'Hi', text: 'Hello' } });
 const text = result.content[0].text;
 if (!text.includes('"dry_run": true') || text.includes('pdg_smoke_test')) throw new Error(`unexpected dry-run result: ${text}`);
