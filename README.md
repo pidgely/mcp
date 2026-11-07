@@ -19,15 +19,13 @@ A [Model Context Protocol](https://modelcontextprotocol.io) server for [Pidgely]
 
 ## Install
 
-The package is not on npm yet, so `npx @pidgely/mcp` does not work today. Build it from source (Node 20 or newer):
+No clone or build needed. Run it straight from GitHub with `npx` (Node 20 or newer; the first run builds it, so it takes about a minute):
 
 ```sh
-git clone https://github.com/pidgely/mcp.git
-cd mcp
-npm install && npm run build
+PIDGELY_API_KEY=pdg_your_key npx -y github:pidgely/mcp
 ```
 
-In the configurations below, replace `/path/to/mcp` with the folder you just cloned (use the absolute path).
+The package is not published on the npm registry yet, so `npx @pidgely/mcp` does not work; use `npx -y github:pidgely/mcp` instead. To use a local copy, run `git clone https://github.com/pidgely/mcp.git && cd mcp && npm install && npm run build` and point your client at `node /path/to/mcp/dist/cli.js`.
 
 ## Quick start
 
@@ -38,7 +36,7 @@ In the configurations below, replace `/path/to/mcp` with the folder you just clo
 ### Claude Code
 
 ```sh
-claude mcp add pidgely --env PIDGELY_API_KEY=pdg_your_key -- node /path/to/mcp/dist/cli.js
+claude mcp add pidgely --env PIDGELY_API_KEY=pdg_your_key -- npx -y github:pidgely/mcp
 ```
 
 To start safely, add `--env PIDGELY_MCP_DRY_RUN=true` or `--env PIDGELY_MCP_READ_ONLY=true`. Use `--scope user` to make the server available in every project.
