@@ -4,7 +4,6 @@
 
 <p align="center">
   <a href="https://github.com/pidgely/mcp/actions/workflows/ci.yml"><img src="https://github.com/pidgely/mcp/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://www.npmjs.com/package/@pidgely/mcp"><img src="https://img.shields.io/npm/v/@pidgely/mcp?color=E2793F" alt="npm"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A520-339933?logo=node.js&logoColor=white" alt="Node ≥ 20">
   <img src="https://img.shields.io/badge/MCP-stdio%20%7C%20Streamable%20HTTP-6E56CF" alt="MCP">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT"></a>
@@ -16,7 +15,19 @@ A [Model Context Protocol](https://modelcontextprotocol.io) server for [Pidgely]
 
 - **74 tools**, one per useful API operation, with precise JSON schemas, built on the official [`pidgely`](https://github.com/pidgely/pidgely-node) SDK and the official MCP TypeScript SDK.
 - **Safe by default.** Sending tools require an explicit `to`, broadcasts need `confirm: true`, and every tool carries MCP annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`). A **dry-run** mode and a **read-only** mode are available. The API key is never echoed back to the model, and credentials you pass (Cloudflare tokens) are write-only.
-- **Runs locally over stdio** (`npx`), or as a **Streamable HTTP** server.
+- **Runs locally over stdio** (`node dist/cli.js`), or as a **Streamable HTTP** server.
+
+## Install
+
+The package is not on npm yet, so `npx @pidgely/mcp` does not work today. Build it from source (Node 20 or newer):
+
+```sh
+git clone https://github.com/pidgely/mcp.git
+cd mcp
+npm install && npm run build
+```
+
+In the configurations below, replace `/path/to/mcp` with the folder you just cloned (use the absolute path).
 
 ## Quick start
 
@@ -27,7 +38,7 @@ A [Model Context Protocol](https://modelcontextprotocol.io) server for [Pidgely]
 ### Claude Code
 
 ```sh
-claude mcp add pidgely --env PIDGELY_API_KEY=pdg_your_key -- npx -y @pidgely/mcp
+claude mcp add pidgely --env PIDGELY_API_KEY=pdg_your_key -- node /path/to/mcp/dist/cli.js
 ```
 
 To start safely, add `--env PIDGELY_MCP_DRY_RUN=true` or `--env PIDGELY_MCP_READ_ONLY=true`. Use `--scope user` to make the server available in every project.
@@ -40,8 +51,8 @@ Edit `claude_desktop_config.json` (*Settings → Developer → Edit Config*):
 {
   "mcpServers": {
     "pidgely": {
-      "command": "npx",
-      "args": ["-y", "@pidgely/mcp"],
+      "command": "node",
+      "args": ["/path/to/mcp/dist/cli.js"],
       "env": {
         "PIDGELY_API_KEY": "pdg_your_key",
         "PIDGELY_MCP_DEFAULT_FROM": "Acme <hello@acme.com>"
@@ -59,8 +70,8 @@ Edit `claude_desktop_config.json` (*Settings → Developer → Edit Config*):
 {
   "mcpServers": {
     "pidgely": {
-      "command": "npx",
-      "args": ["-y", "@pidgely/mcp"],
+      "command": "node",
+      "args": ["/path/to/mcp/dist/cli.js"],
       "env": { "PIDGELY_API_KEY": "pdg_your_key" }
     }
   }
@@ -79,8 +90,8 @@ Edit `claude_desktop_config.json` (*Settings → Developer → Edit Config*):
   "servers": {
     "pidgely": {
       "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@pidgely/mcp"],
+      "command": "node",
+      "args": ["/path/to/mcp/dist/cli.js"],
       "env": { "PIDGELY_API_KEY": "${input:pidgely-key}" }
     }
   }
@@ -89,7 +100,7 @@ Edit `claude_desktop_config.json` (*Settings → Developer → Edit Config*):
 
 ### Other clients
 
-Any MCP client that can launch a stdio server can use `npx -y @pidgely/mcp` with `PIDGELY_API_KEY` set in its environment. For remote or shared setups, see [Streamable HTTP](#streamable-http).
+Any MCP client that can launch a stdio server can use `node /path/to/mcp/dist/cli.js` with `PIDGELY_API_KEY` set in its environment. For remote or shared setups, see [Streamable HTTP](#streamable-http).
 
 ## Configuration
 
@@ -234,14 +245,14 @@ The builder, AI and brand tools need the Scale plan (the API answers `403 plan_r
 ## Streamable HTTP
 
 ```sh
-PIDGELY_API_KEY=pdg_your_key npx -y @pidgely/mcp --http --port 3333
+PIDGELY_API_KEY=pdg_your_key node /path/to/mcp/dist/cli.js --http --port 3333
 # → http://127.0.0.1:3333/mcp   (health check: /healthz)
 ```
 
 The server is stateless: each POST to `/mcp` gets a fresh MCP server, so it scales horizontally behind a load balancer. By default it binds to loopback and rejects requests whose `Host` header is not a loopback name, which protects against DNS rebinding. To expose it on a network, set a token:
 
 ```sh
-PIDGELY_MCP_HTTP_TOKEN=$(openssl rand -hex 32) PIDGELY_API_KEY=pdg_… npx -y @pidgely/mcp --http --host 0.0.0.0
+PIDGELY_MCP_HTTP_TOKEN=$(openssl rand -hex 32) PIDGELY_API_KEY=pdg_… node /path/to/mcp/dist/cli.js --http --host 0.0.0.0
 ```
 
 Clients must then send `Authorization: Bearer <token>`. Put TLS in front of it with a reverse proxy. All callers share the server's API key, so treat the token like that key.
@@ -272,7 +283,7 @@ npm run inspect       # open the MCP Inspector against the local build
 
 ### Dependencies
 
-The server is built on the [`pidgely`](https://github.com/pidgely/pidgely-node) SDK. Until that SDK is published to npm, it is a dev dependency pinned to a commit of `github:pidgely/pidgely-node`, and `tsup` **bundles** it into `dist/`. The published `@pidgely/mcp` therefore depends only on `@modelcontextprotocol/sdk` and `zod`, and `npx -y @pidgely/mcp` works without `pidgely` being on npm. Once `pidgely` is published, it will move to a regular `"pidgely": "^0.1.0"` dependency and the `noExternal` bundling in `tsup.config.ts` will be dropped.
+The server is built on the [`pidgely`](https://github.com/pidgely/pidgely-node) SDK. Until that SDK is published to npm, it is a dev dependency pinned to a commit of `github:pidgely/pidgely-node`, and `tsup` **bundles** it into `dist/`. The built `dist/` therefore needs only `@modelcontextprotocol/sdk` and `zod`, and works without `pidgely` being on npm. Once `pidgely` is published, it will move to a regular `"pidgely": "^0.1.0"` dependency and the `noExternal` bundling in `tsup.config.ts` will be dropped.
 
 ### Publishing
 
